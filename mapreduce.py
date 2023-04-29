@@ -35,7 +35,35 @@ class TextClassifier(MRJob):
         ]
 
     
-    
+    def reducer_compute_chi(self, term, cat_freq_dicts):
+        # Calculate chi-square value for each term in each category
+        # Order the terms according to their value per category
+        # Preserve the top 75 terms per category
+        cat_total_dict = {}
+        term_total = 0
+        for cat_freq_dict in cat_freq_dicts:
+            for category, freq in cat_freq_dict.items():
+                if category in cat_total_dict:
+                    cat_total_dict[category] += freq
+                else:
+                    cat_total_dict[category] = freq
+                term_total += freq
+        N = sum(cat_total_dict.values())
+        top_chi = []
+        for category, cat_total in cat_total_dict.items():
+            for term_cat_freq_dict in cat_freq_dicts:
+                if category in term_cat_freq_dict:
+                    A = term_cat_freq_dict[category]
+                else:
+                    A = 0
+                B = cat_total - A
+                C = term_total - A
+                D = N - A - B - C
+                chi = (N * ((A * D) - (B * C)) ** 2) / ((A + C) * (B + D) * (A + B) * (C + D))
+                top_chi.append((term[1], category, chi))
+        top_chi = sorted(top_chi, key=lambda x: x[2], reverse=True)[:75]
+
+        yield term[0], top_chi   
 
     
     # Step 1: Tokenize text and emit unigrams as key-value pairs
